@@ -1,0 +1,13 @@
+---
+# tasks file for dhcp-svr package installation
+
+- name: Install DHCP server apt packages
+  become: true
+  apt:
+    update_cache: true
+    name: "{{ item }}"
+    state: present
+  notify: start dhcpd
+  with_items:
+    - isc-dhcp-server
+

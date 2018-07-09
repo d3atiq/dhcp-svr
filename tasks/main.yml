@@ -1,0 +1,6 @@
+---
+# tasks file for dhcp-svr
+
+- include_tasks: apt.yml
+- include_tasks: dhcpd.yml
+

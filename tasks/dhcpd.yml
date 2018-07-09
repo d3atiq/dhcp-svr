@@ -1,0 +1,35 @@
+---
+# tasks file for dhcp-svr isc-dhcp-server configuration
+
+- name: Disable apparmor profile for dhcpd
+  become: true
+  shell: (ln -s /etc/apparmor.d/usr.sbin.dhcpd /etc/apparmor.d/disable/) && (apparmor_parser -R /etc/apparmor.d/usr.sbin.dhcpd)
+  args:
+    creates: /etc/apparmor.d/disable/usr.sbin.dhcpd
+
+- name: Create dhcpd configuration
+  become: true
+  template: 
+    src: dhcpd.conf.j2
+    dest: "{{ dhcpd.conf_dir }}/dhcpd.conf"
+    owner: root
+    group: root
+    mode: 0640
+    validate: "dhcpd -t -cf %s"
+  notify: restart dhcpd
+
+- name: Re-enable apparmor profile for dhcpd
+  become: true
+  shell: (rm /etc/apparmor.d/disable/usr.sbin.dhcpd) && (cat /etc/apparmor.d/usr.sbin.dhcpd | apparmor_parser -a)
+  args:
+    removes: /etc/apparmor.d/disable/usr.sbin.dhcpd
+
+- name: Fill in network interfaces for dhcpd
+  become: true
+  lineinfile:
+    path: /etc/default/isc-dhcp-server
+    regexp: '^INTERFACES='
+    line: 'INTERFACES="{% for i in dhcpd.interfaces %} {{ i }} {% endfor %}"'
+    state: present
+    backup: true
+

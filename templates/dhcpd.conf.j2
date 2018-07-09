@@ -1,0 +1,133 @@
+
+ddns-update-style {{ dhcpd.ddns.update_style }};
+ddns-updates off;
+update-optimization {% if dhcpd.ddns.update_optimization %}on{% else %}off{% endif %};
+ignore client-updates;
+
+default-lease-time {{ dhcpd.lease_time.default }};
+max-lease-time {{ dhcpd.lease_time.max }};
+
+{% if dhcpd.authoritative is defined and dhcpd.authoritative %}
+authoritative;
+{% endif %}
+
+log-facility {{ dhcpd.log_facility }};
+
+{% for k in keys %}
+key {{ k.id }} {
+    algorithm {{ k.algorithm }};
+    secret "{{ k.secret }}";
+};
+{% endfor %}
+
+{% if dhcpd.failover is defined and dhcpd.failover.omapi is defined and dhcpd.failover.omapi.key is defined %}
+omapi-key {{ dhcpd.failover.omapi.key }};
+{% endif %}
+{% if dhcpd.failover is defined and dhcpd.failover.omapi is defined and dhcpd.failover.omapi.port is defined %}
+omapi-port {{ dhcpd.failover.omapi.port }};
+{% endif %}
+
+{% if dhcpd.failover is defined and dhcpd.failover.group is defined %}
+failover peer "{{ dhcpd.failover.group }}" {
+{% for m in mappings %}
+{% if inventory_hostname == m.name and (m.name + '.' + m.domain) == dhcpd.failover.primary.host %}
+    primary;
+    address {{ dhcpd.failover.primary.host }};
+    port {{ dhcpd.failover.primary.port }};
+    peer address {{ dhcpd.failover.secondary.host }};
+    peer port {{ dhcpd.failover.secondary.port }};
+    max-response-delay {{ dhcpd.failover.max_response_delay }};
+    max-unacked-updates {{ dhcpd.failover.max_unacked_updates }};
+    load balance max seconds {{ dhcpd.failover.load_balance_max_secs }};
+    mclt {{ dhcpd.failover.primary.mclt }};
+    split {{ dhcpd.failover.primary.split }};
+{% elif inventory_hostname == m.name and (m.name + '.' + m.domain) == dhcpd.failover.secondary.host %}
+    secondary;
+    address {{ dhcpd.failover.secondary.host }};
+    port {{ dhcpd.failover.secondary.port }};
+    peer address {{ dhcpd.failover.primary.host }};
+    peer port {{ dhcpd.failover.primary.port }};
+    max-response-delay {{ dhcpd.failover.max_response_delay }};
+    max-unacked-updates {{ dhcpd.failover.max_unacked_updates }};
+    load balance max seconds {{ dhcpd.failover.load_balance_max_secs }};
+{% endif %}
+{% endfor %}
+}
+{% endif %}
+
+{% for n in networks %}
+{% if n.dhcp.ddns.enabled %}
+zone {{ n.dhcp.ddns.domain }} {
+{% for d in domains %}
+{% if (d.domain + '.') == n.dhcp.ddns.domain %}
+    primary {{ d.ns.primary }};
+{% endif %}
+{% if n.dhcp.ddns.key is defined %}
+    key {{ n.dhcp.ddns.key }};
+{% endif %}
+{% endfor %}
+}
+
+zone {{ '.'.join((n.subnet | ipaddr('network') | ipaddr('revdns')).split('.')[1:]) }} {
+    primary {{ n.rdns.ns.primary }};
+{% if n.dhcp.ddns.key is defined %}
+    key {{ n.dhcp.ddns.key }};
+{% endif %}
+}
+
+{% endif %}
+subnet {{ n.subnet | ipaddr('network') }} netmask {{ n.subnet | ipaddr('netmask') }} {
+    pool {
+{% if dhcpd.failover is defined and dhcpd.failover.group is defined and dhcpd.failover.group %}
+        failover peer "{{ dhcpd.failover.group }}";
+{% endif %}
+        range {{ n.dhcp.pool.range.start }} {{ n.dhcp.pool.range.end }};
+{% if n.dhcp.pool.max_lease_time is defined %}
+        max-lease-time {{ n.dhcp.pool.max_lease_time }};
+{% endif %}
+{% if n.dhcp.pool.unknown_clients is defined %}
+        {% if n.dhcp.pool.unknown_clients %}allow{% else %}deny{% endif %} unknown-clients;
+{% endif %}
+    }
+    
+    option subnet-mask {% if n.dhcp.netmask is defined and n.dhcp.netmask %}{{ n.dhcp.netmask }}{% else %}{{ n.subnet | ipaddr('netmask') }}{% endif %};
+    option broadcast-address {% if n.dhcp.broadcast is defined and n.dhcp.broadcast %}{{ n.dhcp.broadcast }}{% else %}{{ n.subnet | ipaddr('broadcast') }}{% endif %};
+{% if n.dhcp.gateway is defined and n.dhcp.gateway %}
+    option routers {{ n.dhcp.gateway }};
+{% endif %}
+{% if n.dhcp.ntp is defined and n.dhcp.ntp %}
+    option ntp-servers {% for t in n.dhcp.ntp %} {{ t }} {% endfor %};
+{% endif %}
+{% if n.dhcp.domain is defined and n.dhcp.domain %}
+    option domain-name "{{ n.dhcp.domain }}";
+{% endif %}
+{% set nameservers = [] %}
+{% for d in domains %}
+{% if (d.domain + '.') == n.dhcp.ddns.domain %}
+{% for m in mappings %}
+{% if (m.name + '.' + m.domain) == d.ns.primary %}
+{% if m.addr4 is defined and m.addr4 and nameservers.append(m.addr4) %}{% endif %}
+{% if m.addr6 is defined and m.addr6 and nameservers.append(m.addr6) %}{% endif %}
+{% endif %}
+{% endfor %}
+{% for s in d.ns.secondary %}
+{% for m in mappings %}
+{% if (m.name + '.' + m.domain) == s %}
+{% if m.addr4 is defined and m.addr4 and nameservers.append(m.addr4) %}{% endif %}
+{% if m.addr6 is defined and m.addr6 and nameservers.append(m.addr6) %}{% endif %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+    option domain-name-servers {{ nameservers | join(', ') }};
+{% if n.dhcp.ddns.enabled %}
+    ddns-updates on;
+    ddns-domainname "{{ n.dhcp.ddns.domain }}";
+    ddns-rev-domainname "in-addr.arpa.";
+    ddns-ttl {{ n.dhcp.ddns.ttl }};
+{% endif %}
+}
+
+{% endfor %}
+

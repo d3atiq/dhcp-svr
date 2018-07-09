@@ -1,0 +1,15 @@
+---
+# handlers file for dhcp-svr
+
+- name: start dhcpd
+  become: true
+  service:
+    name: isc-dhcp-server
+    state: started
+
+- name: restart dhcpd
+  become: true
+  service:
+    name: isc-dhcp-server
+    state: restarted
+
