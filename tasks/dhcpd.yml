@@ -32,4 +32,3 @@
     line: 'INTERFACES="{% for i in dhcpd.interfaces %} {{ i }} {% endfor %}"'
     state: present
     backup: true
-

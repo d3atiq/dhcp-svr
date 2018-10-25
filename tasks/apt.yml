@@ -5,9 +5,6 @@
   become: true
   apt:
     update_cache: true
-    name: "{{ item }}"
+    name: isc-dhcp-server
     state: present
   notify: start dhcpd
-  with_items:
-    - isc-dhcp-server
-
