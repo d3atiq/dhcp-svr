@@ -1,8 +1,10 @@
 
+{% if dhcpd.ddns is defined %}
 ddns-update-style {{ dhcpd.ddns.update_style }};
 ddns-updates off;
 update-optimization {% if dhcpd.ddns.update_optimization %}on{% else %}off{% endif %};
 ignore client-updates;
+{% endif %}
 
 default-lease-time {{ dhcpd.lease_time.default }};
 max-lease-time {{ dhcpd.lease_time.max }};
@@ -11,14 +13,18 @@ max-lease-time {{ dhcpd.lease_time.max }};
 authoritative;
 {% endif %}
 
+{% if dhcpd.log_facility is defined %}
 log-facility {{ dhcpd.log_facility }};
+{% endif %}
 
+{% if keys is defined %}
 {% for k in keys %}
 key {{ k.id }} {
     algorithm {{ k.algorithm }};
     secret "{{ k.secret }}";
 };
 {% endfor %}
+{% endif %}
 
 {% if dhcpd.failover is defined and dhcpd.failover.omapi is defined and dhcpd.failover.omapi.key is defined %}
 omapi-key {{ dhcpd.failover.omapi.key }};
@@ -56,7 +62,7 @@ failover peer "{{ dhcpd.failover.group }}" {
 {% endif %}
 
 {% for n in networks %}
-{% if n.dhcp.ddns.enabled %}
+{% if n.dhcp.ddns is defined and n.dhcp.ddns.enabled %}
 zone {{ n.dhcp.ddns.domain }} {
 {% for d in domains %}
 {% if (d.domain + '.') == n.dhcp.ddns.domain %}
@@ -121,7 +127,7 @@ subnet {{ n.subnet | ipaddr('network') }} netmask {{ n.subnet | ipaddr('netmask'
 {% endif %}
 {% endfor %}
     option domain-name-servers {{ nameservers | join(', ') }};
-{% if n.dhcp.ddns.enabled %}
+{% if n.dhcp.ddns is defined and n.dhcp.ddns.enabled %}
     ddns-updates on;
     ddns-domainname "{{ n.dhcp.ddns.domain }}";
     ddns-rev-domainname "in-addr.arpa.";
