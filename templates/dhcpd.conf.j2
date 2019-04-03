@@ -36,7 +36,7 @@ omapi-port {{ dhcpd.failover.omapi.port }};
 {% if dhcpd.failover is defined and dhcpd.failover.group is defined %}
 failover peer "{{ dhcpd.failover.group }}" {
 {% for m in mappings %}
-{% if inventory_hostname == m.name and (m.name + '.' + m.domain) == dhcpd.failover.primary.host %}
+{% if ansible_hostname == m.name and (m.name + '.' + m.domain) == dhcpd.failover.primary.host %}
     primary;
     address {{ dhcpd.failover.primary.host }};
     port {{ dhcpd.failover.primary.port }};
@@ -47,7 +47,7 @@ failover peer "{{ dhcpd.failover.group }}" {
     load balance max seconds {{ dhcpd.failover.load_balance_max_secs }};
     mclt {{ dhcpd.failover.primary.mclt }};
     split {{ dhcpd.failover.primary.split }};
-{% elif inventory_hostname == m.name and (m.name + '.' + m.domain) == dhcpd.failover.secondary.host %}
+{% elif ansible_hostname == m.name and (m.name + '.' + m.domain) == dhcpd.failover.secondary.host %}
     secondary;
     address {{ dhcpd.failover.secondary.host }};
     port {{ dhcpd.failover.secondary.port }};
