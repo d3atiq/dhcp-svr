@@ -6,6 +6,7 @@
   shell: (ln -s /etc/apparmor.d/usr.sbin.dhcpd /etc/apparmor.d/disable/) && (apparmor_parser -R /etc/apparmor.d/usr.sbin.dhcpd)
   args:
     creates: /etc/apparmor.d/disable/usr.sbin.dhcpd
+  when: dhcpd.apparmor is defined and dhcpd.apparmor == true
 
 - name: Create dhcpd configuration
   become: true
@@ -23,6 +24,7 @@
   shell: (rm /etc/apparmor.d/disable/usr.sbin.dhcpd) && (cat /etc/apparmor.d/usr.sbin.dhcpd | apparmor_parser -a)
   args:
     removes: /etc/apparmor.d/disable/usr.sbin.dhcpd
+  when: dhcpd.apparmor is defined and dhcpd.apparmor == true
 
 - name: Fill in network interfaces for dhcpd
   become: true
