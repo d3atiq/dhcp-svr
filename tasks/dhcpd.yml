@@ -10,7 +10,7 @@
 
 - name: Create dhcpd configuration
   become: true
-  template: 
+  template:
     src: dhcpd.conf.j2
     dest: "{{ dhcpd.conf_dir }}/dhcpd.conf"
     owner: root
