@@ -25,6 +25,7 @@
   args:
     removes: /etc/apparmor.d/disable/usr.sbin.dhcpd
   when: dhcpd.apparmor is defined and dhcpd.apparmor
+  notify: restart dhcpd
 
 - name: Fill in network interfaces for dhcpd
   become: true
@@ -34,3 +35,4 @@
     line: 'INTERFACES="{% for i in dhcpd.interfaces %} {{ i }} {% endfor %}"'
     state: present
     backup: true
+  notify: restart dhcpd
